@@ -76,7 +76,8 @@ public class UserSession implements Serializable {
     }
 
     public boolean isLoggedIn() {
-        return user != null;
+    	//System.out.println("User email id="+user.getEmail());
+        return user!= null;
     }
 
     public void login(String email, String displayName) {

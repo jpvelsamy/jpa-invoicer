@@ -27,10 +27,12 @@ public class VaadinUI extends ViewMenuUI {
     @Override
     protected void init(VaadinRequest request) {
         super.init(request);
+        
         if (!userSession.isLoggedIn()) {
             getContent().setVisible(false);
             addWindow(loginWindow.get());
         }
+        
     }
 
     @Override

@@ -14,10 +14,13 @@ import com.vaadin.ui.Notification;
 import com.vaadin.ui.Window;
 import com.vaadin.ui.themes.ValoTheme;
 import java.io.IOException;
+import java.util.Arrays;
+
 import javax.inject.Inject;
 import org.apache.deltaspike.core.api.config.ConfigProperty;
 import org.example.backend.UserSession;
 import org.scribe.builder.ServiceBuilder;
+import org.scribe.builder.api.FacebookApi;
 import org.scribe.model.OAuthRequest;
 import org.scribe.model.Response;
 import org.scribe.model.Token;
@@ -33,8 +36,10 @@ import org.vaadin.viritin.layouts.MVerticalLayout;
 public class LoginWindow extends Window implements RequestHandler {
 
     private Link gplusLoginButton;
+    private Link faceBookButton;
 
-    OAuthService service;
+    OAuthService googleService;
+    OAuthService fbService;
 
     @Inject
     UserSession userSession;
@@ -44,15 +49,22 @@ public class LoginWindow extends Window implements RequestHandler {
     public void attach() {
         super.attach();
 
-        service = createService();
-        String url = service.getAuthorizationUrl(null);
+        googleService = createGoogleService();
+        String googleUrl = googleService.getAuthorizationUrl(null);
+        fbService  = createFBService();
+        String fbUrl = fbService.getAuthorizationUrl(null);
         
-        gplusLoginButton = new Link("Login with Google", new ExternalResource(url));
+        gplusLoginButton = new Link("Login with Google", new ExternalResource(googleUrl));
         gplusLoginButton.addStyleName(ValoTheme.LINK_LARGE);
+        
+        faceBookButton = new Link("Login with Facebook", new ExternalResource(fbUrl));
+        faceBookButton.addStyleName(ValoTheme.LINK_LARGE);
 
         VaadinSession.getCurrent().addRequestHandler(this);
 
-        setContent(new MVerticalLayout(gplusLoginButton).alignAll(
+        MVerticalLayout mVerticalLayout = new MVerticalLayout(gplusLoginButton, faceBookButton);
+        
+		setContent(mVerticalLayout.alignAll(
                 Alignment.MIDDLE_CENTER).withFullHeight());
         setModal(true);
         setWidth("300px");
@@ -65,7 +77,7 @@ public class LoginWindow extends Window implements RequestHandler {
                 Notification.Type.ERROR_MESSAGE);
     }
 
-    private OAuthService createService() {
+    private OAuthService createGoogleService() {
         ServiceBuilder sb = new ServiceBuilder();
         sb.provider(Google2Api.class);
         sb.apiKey(gpluskey);
@@ -77,6 +89,20 @@ public class LoginWindow extends Window implements RequestHandler {
         }
         sb.callback(callBackUrl);
         return sb.build();
+    }
+    
+    private OAuthService createFBService() {
+    	ServiceBuilder sb = new ServiceBuilder();
+    	sb.provider(FacebookApi.class);
+    	sb.apiKey("455366335002918");
+        sb.apiSecret("4dd7c3c902bd3e158e15353f59cd4df8");
+        sb.scope("email");
+        String callBackUrl = Page.getCurrent().getLocation().toString();
+        if(callBackUrl.contains("#")) {
+            callBackUrl = callBackUrl.substring(0, callBackUrl.indexOf("#"));
+        }
+        sb.callback(callBackUrl);
+    	return sb.build();
     }
 
     public LoginWindow() {
@@ -91,16 +117,23 @@ public class LoginWindow extends Window implements RequestHandler {
         if (request.getParameter("code") != null) {
             String code = request.getParameter("code");
             Verifier v = new Verifier(code);
-            Token t = service.getAccessToken(null, v);
+            Token t = googleService.getAccessToken(null, v);
 
             OAuthRequest r = new OAuthRequest(Verb.GET,
                     "https://www.googleapis.com/plus/v1/people/me");
-            service.signRequest(t, r);
+            googleService.signRequest(t, r);
             Response resp = r.send();
-
+            System.out.println("Json response="+resp.getBody());
             GooglePlusAnswer answer = new Gson().fromJson(resp.getBody(),
                     GooglePlusAnswer.class);
 
+            //
+            String displayName  = answer.displayName;
+            String emailArr = Arrays.toString(answer.emails);
+            System.out.println("Display Name="+displayName+", emailArr="+emailArr);
+            
+            if(answer.emails.length==0)
+            	return false;
             userSession.login(answer.emails[0].value, answer.displayName);
 
             close();
@@ -114,12 +147,11 @@ public class LoginWindow extends Window implements RequestHandler {
         return false;
     }
 
-    @Inject
-    @ConfigProperty(name = "jpa-invoicer.gpluskey")
-    private String gpluskey;
-
-    @Inject
-    @ConfigProperty(name = "jpa-invoicer.gplussecret")
-    private String gplussecret;
+    
+    
+    private String gpluskey="705099353658-rghjmk39n95am9j7bnjg4283eb7dcvgj.apps.googleusercontent.com";
+    private String gplussecret="y-EmN_1yjLLYCs5Dn8TD3gAj";
+    //https://console.developers.google.com/apis/credentials/oauthclient/705099353658-rghjmk39n95am9j7bnjg4283eb7dcvgj.apps.googleusercontent.com?project=tranquil-buffer-235404&angularJsUrl=%2Fapis%2Fcredentials%2Foauthclient%2F705099353658-rghjmk39n95am9j7bnjg4283eb7dcvgj.apps.googleusercontent.com%3Fproject%3D705099353658&authuser=2
+    //AIzaSyABkEv8xBQov75kXQVih6TmvWFGHNPbIO0
 
 }

@@ -17,6 +17,8 @@ import org.scribe.oauth.OAuthService;
 import org.scribe.utils.OAuthEncoder;
 import org.scribe.utils.Preconditions;
 
+import com.google.gson.Gson;
+
 /**
  * Google OAuth2.0 
  * Released under the same license as scribe (MIT License)
@@ -40,17 +42,22 @@ public class Google2Api extends DefaultApi20 {
             @Override
             public Token extract(String response) {
                 Preconditions.checkEmptyString(response, "Response body is incorrect. Can't extract a token from an empty string");
- 
-                Matcher matcher = Pattern.compile("\"access_token\" : \"([^&\"]+)\"").matcher(response);
-                if (matcher.find())
-                {
-                  String token = OAuthEncoder.decode(matcher.group(1));
-                  return new Token(token, "", response);
-                } 
+                BearerToken btoken = new Gson().fromJson(response, BearerToken.class);
+                System.out.println("Incoming Token="+btoken);
+				/*
+				 * Matcher matcher =
+				 * Pattern.compile("\"access_token\" : \"([^&\"]+)\"").matcher(response); if
+				 * (matcher.find()) { String token = OAuthEncoder.decode(matcher.group(1));
+				 * return new Token(token, "", response); } else
+				 */if (btoken!=null) {
+                	String token = btoken.getAccess_token();
+                	return new Token(token, "", response);
+                }
                 else
                 {
                   throw new OAuthException("Response body is incorrect. Can't extract a token from this: '" + response + "'", null);
                 }
+
             }
         };
     }
